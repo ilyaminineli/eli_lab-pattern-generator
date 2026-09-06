@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import html
 import math
+import random
 
-from PIL import ImageFilter
+from PIL import Image, ImageFilter
 from PySide6.QtCore import QPointF, Qt
-from PySide6.QtGui import QFont, QFontDatabase, QKeySequence, QPainter, QPen, QColor, QShortcut
+from PySide6.QtGui import QFont, QFontDatabase, QKeySequence, QPainter, QPen, QColor, QShortcut, QImage
 from PySide6.QtWidgets import QComboBox
 
 from . import extensions
@@ -69,42 +70,40 @@ def _font_families() -> list[str]:
     return ordered
 
 
-def _vertical_grid_text_extension(self, result, config):
+def _vertical_grid_text_extension(self,result,config):
     settings=self.text_settings; text=settings["text"].replace("\r\n","\n").replace("\r","\n")
-    qimage=__import__("PySide6.QtGui",fromlist=["QImage"]).QImage(config.width,config.height,__import__("PySide6.QtGui",fromlist=["QImage"]).QImage.Format_ARGB32); qimage.fill(Qt.transparent)
+    qimage=QImage(config.width,config.height,QImage.Format_ARGB32); qimage.fill(Qt.transparent)
     painter=QPainter(qimage); painter.setRenderHint(QPainter.Antialiasing,True); painter.setRenderHint(QPainter.TextAntialiasing,True)
     font=QFont(settings["font_family"],int(settings["font_size"])); font.setKerning(True)
     try: font.setLetterSpacing(QFont.AbsoluteSpacing,float(settings["tracking"]))
     except Exception: pass
     painter.setFont(font); metrics=painter.fontMetrics(); char_h=metrics.height()*float(settings["line_spacing"])
-    chars=[c for c in text if c != "\n"]; rng=__import__("random").Random(f"{result.seed}:text"); palette=self._palette(rng,config); alpha=max(1,min(255,int(255*settings["opacity"]))); svg=[]
+    chars=[c for c in text if c != "\n"]; rng=random.Random(f"{result.seed}:text"); palette=self._palette(rng,config); alpha=max(1,min(255,int(255*settings["opacity"]))); svg=[]
     def paint(char,x,y):
         color=self._choose_color(rng,palette,config,x,y); painter.save(); painter.translate(x,y); painter.setPen(QPen(QColor(*color,alpha))); painter.drawText(QPointF(0,(metrics.ascent()-metrics.descent())/2),char); painter.restore(); svg.append(f'<text x="{x:.1f}" y="{y:.1f}" font-family="{html.escape(settings["font_family"])}" font-size="{int(settings["font_size"])}" fill="rgb({color[0]},{color[1]},{color[2]})" fill-opacity="{alpha/255:.3f}" text-anchor="middle" dominant-baseline="middle">{html.escape(char)}</text>')
-    cols=max(1,int(config.width/max(24,settings["font_size"]*1.35))); rows=max(1,int(config.height/max(24,char_h))); limit=cols*rows
-    used=0
+    cols=max(1,int(config.width/max(24,settings["font_size"]*1.35))); rows=max(1,int(config.height/max(24,char_h))); used=0
     for col in range(cols):
         x=config.width-settings["font_size"]*(0.85+col*1.15)
         for row in range(rows):
-            if used>=len(chars) or used>=limit: break
-            char=chars[used]; used+=1; y=settings["font_size"]*0.8+row*char_h
-            paint(char,x,y)
-    painter.end(); raw=bytes(qimage.bits()); text_image=__import__("PIL.Image",fromlist=["Image"]).Image.frombytes("RGBA",(qimage.width(),qimage.height()),raw,"raw","BGRA")
-    result.image=__import__("PIL.Image",fromlist=["Image"]).Image.alpha_composite(result.image.convert("RGBA"),text_image)
+            if used>=len(chars): break
+            char=chars[used]; used+=1; y=settings["font_size"]*0.8+row*char_h; paint(char,x,y)
+        if used>=len(chars): break
+    painter.end(); raw=bytes(qimage.bits()); text_image=Image.frombytes("RGBA",(qimage.width(),qimage.height()),raw,"raw","BGRA")
+    result.image=Image.alpha_composite(result.image.convert("RGBA"),text_image)
     if svg: result.svg=result.svg.rsplit("</svg>",1)[0]+"\n"+"\n".join(svg)+"\n</svg>"
 
 
 _original_text_extension=extensions.EnhancedPatternRenderer._draw_text_extension
 
 def _draw_text_extension(self,result,config):
-    if self.text_settings.get("mode") == "vertical-grid":
-        return _vertical_grid_text_extension(self,result,config)
+    if self.text_settings.get("mode")=="vertical-grid": return _vertical_grid_text_extension(self,result,config)
     return _original_text_extension(self,result,config)
 
 extensions.EnhancedPatternRenderer._draw_text_extension=_draw_text_extension
 
 
 class MainWindow(extensions.MainWindow):
-    """Compatibility wrapper: stable seed previews, Japanese typography and working shortcuts."""
+    """Compatibility wrapper: stable seed previews, Japanese typography and reliable shortcuts."""
     def __init__(self):
         super().__init__(); self._populate_text_fonts(); self._add_vertical_text_mode()
 
@@ -115,8 +114,7 @@ class MainWindow(extensions.MainWindow):
 
     def _add_vertical_text_mode(self):
         combo=getattr(self,"text_mode",None)
-        if combo is None:return
-        if combo.findText("vertical-grid")<0: combo.addItem("vertical-grid")
+        if combo is not None and combo.findText("vertical-grid")<0: combo.addItem("vertical-grid")
 
     def _config(self):
         if hasattr(self,"result") and self.result is not None and not self.seed.text().strip():
@@ -133,7 +131,7 @@ class MainWindow(extensions.MainWindow):
             finally:self.seed.blockSignals(False)
         image=result.image
         if image.width>0 and image.height>0:
-            up=image.resize((image.width*2,image.height*2),ImageFilter.Resampling.BICUBIC); result.image=up.resize((image.width,image.height),ImageFilter.Resampling.LANCZOS)
+            up=image.resize((image.width*2,image.height*2),Image.Resampling.BICUBIC); result.image=up.resize((image.width,image.height),Image.Resampling.LANCZOS)
             self.preview.set_image(pil_to_qimage(result.image))
 
     def _install_shortcuts(self):
