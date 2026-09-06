@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 
 from PySide6.QtGui import QFontDatabase
+from PySide6.QtWidgets import QComboBox
 
 from . import extensions
 from .generator import PatternRenderer as BaseRenderer, _rotate
@@ -85,7 +86,6 @@ def _compatible_shape(self, draw, svg, cfg, rng, shape, cx, cy, size, rotation, 
             f'stroke-width="{width}" stroke-linecap="round"/>'
         )
 
-    # Draw the canonical foreground primitive through the unchanged renderer.
     BaseRenderer._shape(self, draw, svg, cfg, rng, shape, cx, cy, size, rotation, color, alpha)
 
     edge_light = float(settings.get("edge_light", 0.28))
@@ -104,7 +104,6 @@ def _compatible_shape(self, draw, svg, cfg, rng, shape, cx, cy, size, rotation, 
         )
 
 
-# Keep the core renderer untouched; only normalize the extension hook.
 extensions.EnhancedPatternRenderer._shape = _compatible_shape
 
 
@@ -122,15 +121,12 @@ def _font_families() -> list[str]:
         japanese = set()
 
     preferred = [
-        # Japanese / CJK serif
         "Yu Mincho", "YuMincho", "MS Mincho", "MS PMincho", "BIZ UDPMincho", "BIZ UDMincho",
         "Noto Serif CJK JP", "Noto Serif JP", "Source Han Serif", "Source Han Serif JP",
         "Hiragino Mincho ProN", "Hiragino Mincho Pro", "IPAexMincho", "IPAMincho",
-        # Japanese / CJK sans
         "Yu Gothic", "YuGothic", "Meiryo", "Meiryo UI", "MS Gothic", "MS PGothic",
         "BIZ UDPGothic", "BIZ UD Gothic", "Noto Sans CJK JP", "Noto Sans JP", "Source Han Sans",
         "Source Han Sans JP", "Hiragino Kaku Gothic ProN", "IPAexGothic", "IPAGothic",
-        # Latin / display / technical
         "Bahnschrift", "Bahnschrift SemiBold", "Segoe UI", "Segoe UI Variable", "Segoe UI Light",
         "Aptos", "Aptos Display", "Arial", "Arial Narrow", "Helvetica Neue", "Futura",
         "Gill Sans", "Garamond", "Book Antiqua", "Century Gothic", "Impact", "Trebuchet MS",
@@ -140,19 +136,15 @@ def _font_families() -> list[str]:
 
     ordered: list[str] = []
     seen: set[str] = set()
-
-    # Put known Japanese-capable families first, preserving useful distinctions.
     for family in preferred:
         if family in all_families and family not in seen:
             ordered.append(family)
             seen.add(family)
-
     for family in sorted(japanese, key=str.casefold):
         if family not in seen:
             ordered.append(family)
             seen.add(family)
 
-    # Add interesting installed families even if they are not Japanese-capable.
     keywords = (
         "display", "condensed", "mono", "serif", "gothic", "mincho", "script", "slab",
         "hand", "sans", "headline", "black", "light", "variable", "retro", "pixel",
@@ -162,7 +154,6 @@ def _font_families() -> list[str]:
         if family not in seen and any(word in low for word in keywords):
             ordered.append(family)
             seen.add(family)
-
     return ordered
 
 
@@ -170,8 +161,8 @@ class MainWindow(extensions.MainWindow):
     """Final compatibility wrapper: stable rendering + richer system fonts."""
 
     def _connect_auto_preview(self):
-        # Keep all of the original auto-preview controls, but choosing a palette
-        # merely changes the pending configuration. It must not trigger a render.
+        # Choosing a palette changes the pending configuration only. Rendering
+        # happens when another render-triggering control changes or Generate is pressed.
         super()._connect_auto_preview()
         try:
             self.palette_mode.currentTextChanged.disconnect(self._request)
@@ -200,7 +191,7 @@ class MainWindow(extensions.MainWindow):
         else:
             combo.setCurrentIndex(0)
         combo.setEditable(True)
-        combo.setInsertPolicy(combo.InsertPolicy.NoInsert)
+        combo.setInsertPolicy(QComboBox.NoInsert)
         combo.setMaxVisibleItems(18)
         combo.blockSignals(False)
 
