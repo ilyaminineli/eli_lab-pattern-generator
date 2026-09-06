@@ -8,7 +8,7 @@ A procedural graphics workstation for generating abstract images and SVG composi
 
 ## What it does
 
-The generator builds compositions from interacting systems instead of a single randomness slider. A pattern is the result of spatial composition, a shared vector field, weighted primitives, color behavior, layered depth, and controlled mutation.
+The generator builds compositions from interacting systems instead of a single randomness slider. A pattern is the result of spatial composition, a shared vector field, weighted primitive families, color behavior, layered depth, and controlled mutation.
 
 The desktop application uses **PySide6** for the UI, **Pillow** for raster output, and OpenSimplex when available for noise-driven fields.
 
@@ -19,12 +19,23 @@ The desktop application uses **PySide6** for the UI, **Pillow** for raster outpu
 - Responsive background rendering through a Qt worker pool.
 - JSON preset save/load.
 - Persistent window geometry.
-- Blocks, circles, lines, and triangles with independent probability weights.
+- Blocks, circles, lines, triangles, and **organic forms** with independent weights.
+- Organic styles: **amoeba, blob, petal, cell, droplet, and leaf**, with wobble, taper, lobe count, and optional internal veins/tendrils.
 - `none`, `mirror`, `radial`, and `grid` symmetry.
 - Multiple spatial composition modes and explicit focal-point control.
 - Noise, swirl, vortex, waves, and radial vector fields.
-- Palette families: random, pastel, neon, earth, monochrome, ice, and ritual.
+- Palette families: random, pastel, neon, earth, monochrome, ice, ritual, plus a curated **43-flag LGBTQIA+ palette catalogue**.
+- A dedicated **LGBTQ+ / all unique colors** mode containing the deduplicated colors across the curated Pride catalogue.
+- Optional preservation of Pride palette colors by disabling hue jitter.
 - Aspect-aware geometry for square, portrait, landscape, ultrawide, and custom canvases.
+
+## Pride palette catalogue
+
+The palette registry lives in `pattern_app/palettes.py` and is data-driven so additional flags can be added without changing the renderer. The current curated baseline contains 43 named flags, including historical rainbow variants, Progress Pride, lesbian, bisexual, pansexual, polysexual, asexual/graysexual, aromantic/grayromantic, aroace, trans, nonbinary, genderfluid, genderflux, genderqueer, agender, intersex, demiboy/demigirl, transfeminine/transmasculine, queer, sapphic, xenogender, and others.
+
+The color values are based on the public `TRezendes/pride_palette` catalogue, whose README documents 43 explicitly included flags and explains its preference for creator/original sources where available and Wikimedia Commons for many image-derived values. citeturn526575view0turn174930view0
+
+This is intentionally documented as a **curated baseline**, not a claim that there is one finite or universally authoritative list of every Pride flag ever created. The ecosystem changes over time and includes alternate, regional, historical, and community-specific designs.
 
 ## Requirements
 
@@ -66,8 +77,6 @@ Recommended from the repository root:
 ```bash
 python run.py
 ```
-
-PyCharm can use the shared `eli_lab Pattern Generator` run configuration in `.idea/runConfigurations/Pattern_Generator.xml`.
 
 Other supported forms:
 
@@ -113,7 +122,7 @@ The executable will be at:
 dist\\eli_lab-pattern-generator.exe
 ```
 
-The spec uses `run.py` as the frozen entry point. This avoids package-relative import failures that can occur when PyInstaller executes `pattern_app/main.py` directly as `__main__`.
+The spec uses `run.py` as the frozen entry point.
 
 Do not commit `build/`, `dist/`, or generated release artifacts.
 
@@ -125,17 +134,15 @@ Do not commit `build/`, `dist/`, or generated release artifacts.
 4. Create a Git tag matching the package version, for example:
 
 ```powershell
-git tag v2.1.0
-git push origin v2.1.0
+git tag v2.2.0
+git push origin v2.2.0
 ```
 
 5. Upload `dist/eli_lab-pattern-generator.exe` to the GitHub Release.
 
-The GitHub Actions release workflow follows the same one-file Windows build and publishes the executable together with the Python package artifacts.
-
 ## Presets
 
-Presets are ordinary JSON files containing the full `PatternConfig`. They are intended to be portable, diffable, and version-controllable.
+Presets are ordinary JSON files containing the full `PatternConfig`. They are intended to be portable, diffable, and version-controllable. Existing presets remain loadable; missing newer fields use the generator defaults.
 
 ## Architecture
 
@@ -143,6 +150,7 @@ Presets are ordinary JSON files containing the full `PatternConfig`. They are in
 pattern_app/
 ├── __init__.py
 ├── generator.py        # Procedural renderer + SVG generator
+├── palettes.py         # Pride palette registry + color catalogue
 ├── main.py             # Stable application entry point
 └── ui.py               # PySide6 editor UI
 
@@ -158,14 +166,11 @@ scripts/
 Icon/
 └── favicon.ico
 
-.github/workflows/
-└── release.yml
-
 tests/
 └── test_generator.py
 ```
 
-The renderer is deliberately independent of Qt. It can generate a raster image and SVG from `PatternConfig` without starting the GUI, which leaves room for batch rendering and future creative-coding front ends.
+The renderer is independent of Qt. It can generate a raster image and SVG from `PatternConfig` without starting the GUI, leaving room for batch rendering and future creative-coding front ends.
 
 ## Development
 
@@ -175,7 +180,7 @@ Run the test suite with:
 python -m pytest
 ```
 
-The tests cover color parsing, normalization bounds, deterministic generation, SVG output, aspect-aware geometry, and representative behavior profiles.
+The tests cover color parsing, normalization bounds, deterministic generation, SVG output, Pride palette registration, and representative organic styles and behavior profiles.
 
 ## Historical versions
 
@@ -183,4 +188,4 @@ The tests cover color parsing, normalization bounds, deterministic generation, S
 
 ## Roadmap
 
-Future work can build on the current model with additional primitive families, non-linear composition fields, palette harmony modes, masks, layer blend modes, batch generation, seed browsing, animation-ready parameter interpolation, richer SVG primitives, a Windows installer, and additional platform-specific release bundles.
+Future work can build on the current model with palette harmony modes, masks, layer blend modes, batch generation, seed browsing, animation-ready parameter interpolation, richer SVG primitives, a preset library, a Windows installer, and additional platform-specific release bundles.
