@@ -121,11 +121,20 @@ class MainWindow(BaseMainWindow):
         layout.addWidget(QLabel("A separate organic layer: amoeba, blob, petal, cell, droplet and leaf. Off = original composition.")); layout.addWidget(box); layout.addStretch(1); return page
 
     def _extend_palette_selector(self):
-        combo = self.palette_mode; combo.blockSignals(True); combo.clear(); combo.addItem("random", "random"); combo.addItem("pastel", "pastel"); combo.addSeparator()
-        for key, palette in BUILTIN_PALETTES.items(): combo.addItem(palette.name, key)
-        combo.addItem("LGBTQ+ / all unique colors", "lgbtq-all"); combo.addSeparator()
-        for key, palette in PRIDE_PALETTES.items(): combo.addItem(palette.name, key)
-        combo.setCurrentIndex(0); combo.blockSignals(False)
+        combo = self.palette_mode
+        combo.blockSignals(True)
+        combo.clear()
+        combo.addItem("random", "random")
+        combo.addItem("pastel", "pastel")
+        combo.insertSeparator(combo.count())
+        for key, palette in BUILTIN_PALETTES.items():
+            combo.addItem(palette.name, key)
+        combo.addItem("LGBTQ+ / all unique colors", "lgbtq-all")
+        combo.insertSeparator(combo.count())
+        for key, palette in PRIDE_PALETTES.items():
+            combo.addItem(palette.name, key)
+        combo.setCurrentIndex(0)
+        combo.blockSignals(False)
 
     def _add_palette_lock(self):
         self.preserve_palette = QCheckBox("Preserve exact Pride palette colors"); self.preserve_palette.setChecked(True)
