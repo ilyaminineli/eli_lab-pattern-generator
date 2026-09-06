@@ -1,10 +1,10 @@
 """Application entry point for the eli_lab Pattern Generator."""
 
 try:
-    from .compat import MainWindow
+    from .compat_safe import MainWindow
     from .ui import build_app
 except ImportError:  # pragma: no cover - direct execution compatibility
-    from compat import MainWindow
+    from compat_safe import MainWindow
     from ui import build_app
 
 
