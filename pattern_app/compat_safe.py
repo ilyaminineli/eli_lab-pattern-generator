@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QAction, QKeySequence
-from PySide6.QtWidgets import QLabel, QPushButton, QCheckBox, QLineEdit, QPlainTextEdit, QGroupBox, QFormLayout, QTabWidget, QShortcut
+from PySide6.QtGui import QAction, QKeySequence, QShortcut
+from PySide6.QtWidgets import QLabel, QPushButton, QCheckBox, QLineEdit, QPlainTextEdit, QGroupBox, QFormLayout, QTabWidget
 
 from .compat import MainWindow as CompatMainWindow
 from .compat import ANCHORS, EN_TRANSLATIONS, JA_TO_EN
