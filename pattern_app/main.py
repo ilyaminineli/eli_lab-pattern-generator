@@ -1,9 +1,11 @@
 """Application entry point for the eli_lab Pattern Generator."""
 
 try:
-    from .ui import MainWindow, build_app
+    from .extensions import MainWindow
+    from .ui import build_app
 except ImportError:  # pragma: no cover - direct execution compatibility
-    from ui import MainWindow, build_app
+    from extensions import MainWindow
+    from ui import build_app
 
 
 def main() -> int:
