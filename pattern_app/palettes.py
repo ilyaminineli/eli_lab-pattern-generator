@@ -12,7 +12,7 @@ class Palette:
 
 def _rgb(value: str) -> tuple[int, int, int]:
     value = value.lstrip("#")
-    return tuple(int(value[i : i + 2], 16) for i in (0, 2, 4))
+    return tuple(int(value[i: i + 2], 16) for i in (0, 2, 4))
 
 
 def _palette(key: str, name: str, values: str) -> Palette:

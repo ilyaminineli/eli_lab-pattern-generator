@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QKeySequence, QShortcut
-from PySide6.QtWidgets import QLabel, QPushButton, QCheckBox, QLineEdit, QPlainTextEdit, QGroupBox, QFormLayout, QTabWidget
+from PySide6.QtWidgets import QLabel, QPushButton, QCheckBox, QLineEdit, QPlainTextEdit, QGroupBox, QFormLayout, \
+    QTabWidget
 
-from .compat import MainWindow as CompatMainWindow
 from .compat import ANCHORS, EN_TRANSLATIONS, JA_TO_EN
+from .compat import MainWindow as CompatMainWindow
 
 
 class MainWindow(CompatMainWindow):
@@ -32,10 +33,10 @@ class MainWindow(CompatMainWindow):
         # unambiguous application-wide binding for each key combination.
         self._shortcut_objects = []
         for key, slot in (
-            ("Ctrl+G", self.generate),
-            ("Ctrl+Shift+P", self.save_png),
-            ("Ctrl+Shift+S", self.save_svg),
-            ("F5", self.generate),
+                ("Ctrl+G", self.generate),
+                ("Ctrl+Shift+P", self.save_png),
+                ("Ctrl+Shift+S", self.save_svg),
+                ("F5", self.generate),
         ):
             shortcut = QShortcut(QKeySequence(key), self)
             shortcut.setContext(Qt.ApplicationShortcut)

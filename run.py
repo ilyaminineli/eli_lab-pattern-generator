@@ -32,12 +32,12 @@ def _wire_auto_preview_safely(self):
             widget.valueChanged.connect(self._request_preview)
 
     for slider in (
-        self.density,
-        self.complexity,
-        self.grid,
-        self.noise_scale,
-        self.noise_amplitude,
-        self.blur,
+            self.density,
+            self.complexity,
+            self.grid,
+            self.noise_scale,
+            self.noise_amplitude,
+            self.blur,
     ):
         slider.valueChanged.connect(lambda _value: self._request_preview())
 
@@ -45,7 +45,6 @@ def _wire_auto_preview_safely(self):
 # PyCharm commonly runs this file directly. Install the safe signal wiring
 # before MainWindow.__init__ is invoked by pattern_app.main.main().
 MainWindow._wire_auto_preview = _wire_auto_preview_safely
-
 
 if __name__ == "__main__":
     raise SystemExit(app_main())
