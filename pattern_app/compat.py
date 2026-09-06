@@ -8,7 +8,7 @@ import re
 from PIL import Image
 from PySide6.QtCore import QPointF, Qt
 from PySide6.QtGui import QColor, QFont, QFontDatabase, QKeySequence, QPainter, QPen, QShortcut, QImage
-from PySide6.QtWidgets import QComboBox, QFormLayout, QGroupBox, QMenu
+from PySide6.QtWidgets import QCheckBox, QComboBox, QFormLayout, QGroupBox, QLabel, QLineEdit, QMenu, QPlainTextEdit, QPushButton, QTabWidget
 
 from . import extensions
 from .generator import PatternRenderer as BaseRenderer, _rotate
@@ -100,7 +100,7 @@ def _vertical_grid_text_extension(self,result,config):
     margin=max(12,float(settings["font_size"])*0.45)
     if positions:
         bw=max(x for _,x,_ in positions)-min(x for _,x,_ in positions)+settings["font_size"]; bh=max(y for _,_,y in positions)-min(y for _,_,y in positions)+char_h
-        anchor=settings.get("anchor","free"); target=_anchor_rect(anchor,config.width,config.height,bw,bh,margin)
+        target=_anchor_rect(settings.get("anchor","free"),config.width,config.height,bw,bh,margin)
         if target:
             dx=target[0]-(min(x for _,x,_ in positions)-settings["font_size"]/2); dy=target[1]-(min(y for _,_,y in positions)-char_h/2); positions=[(c,x+dx,y+dy) for c,x,y in positions]
     def paint(char,x,y):
@@ -123,6 +123,7 @@ def _draw_text_extension(self,result,config):
     mode=self.text_settings.get("mode","flow")
     if mode in {"vertical-grid","tategaki"}: return _vertical_grid_text_extension(self,result,config)
     anchor=self.text_settings.get("anchor","free")
+    if anchor == "free / current": anchor="free"
     if anchor == "free": return _original_text_extension(self,result,config)
     base_image=result.image.convert("RGBA"); base_svg=result.svg
     result.image=Image.new("RGBA",(config.width,config.height),(0,0,0,0)); result.svg=base_svg
@@ -141,11 +142,11 @@ extensions.EnhancedPatternRenderer._draw_text_extension=_draw_text_extension
 
 
 EN_TRANSLATIONS={
-    "File":"ファイル","Generate":"生成","Save PNG":"PNGを保存","Save SVG":"SVGを保存","Save preset":"プリセットを保存","Load preset":"プリセットを読み込む",
+    "Settings":"設定","File":"ファイル","Generate":"生成","Save PNG":"PNGを保存","Save SVG":"SVGを保存","Save preset":"プリセットを保存","Load preset":"プリセットを読み込む",
     "Composition":"構成","Field":"フィールド","Geometry":"ジオメトリ","Color":"カラー","Layers":"レイヤー","Behavior":"動作","Organic":"有機","Text":"テキスト","Export":"書き出し",
     "Canvas":"キャンバス","Width":"幅","Height":"高さ","Aspect":"比率","Apply aspect":"比率を適用","Seed":"シード","Background":"背景","Palette":"パレット","Symmetry":"対称",
     "Spatial composition":"空間構成","Mode":"モード","Focal X":"焦点X","Focal Y":"焦点Y","Focal strength":"焦点強度","Edge bias":"エッジ偏り","Cluster count":"クラスタ数","Cluster strength":"クラスタ強度","Spacing":"間隔","Position jitter":"位置ジッター",
-    "Vector field":"ベクトルフィールド","Field":"フィールド","Strength":"強度","Scale":"スケール","Curvature":"曲率","Steps":"ステップ数","Step size":"ステップ幅","Octaves":"オクターブ",
+    "Vector field":"ベクトルフィールド","Strength":"強度","Scale":"スケール","Curvature":"曲率","Steps":"ステップ数","Step size":"ステップ幅","Octaves":"オクターブ",
     "Primitive probability":"プリミティブ確率","Blocks":"ブロック","Circles":"円","Lines":"線","Triangles":"三角形","weight":"重み",
     "Color behavior":"カラー設定","Palette size":"パレット数","Saturation":"彩度","Contrast":"コントラスト","Hue jitter":"色相ジッター","Opacity min":"最小不透明度","Opacity max":"最大不透明度","Color coherence":"色の一貫性",
     "Depth & surface":"奥行き・表面","Layer count":"レイヤー数","Depth":"奥行き","Accent density":"アクセント密度","Gradient background":"グラデーション背景","Raster blur":"ラスターブラー",
@@ -159,6 +160,7 @@ EN_TRANSLATIONS={
     "Procedural composition laboratory":"プロシージャル構成ラボ","Generate a pattern":"パターンを生成"
 }
 JA_TO_EN={v:k for k,v in EN_TRANSLATIONS.items()}
+ANCHORS=[("free / current","自由 / 現在位置"),("top-left","左上"),("top-center","上中央"),("top-right","右上"),("center-left","中央左"),("center","中央"),("center-right","中央右"),("bottom-left","左下"),("bottom-center","下中央"),("bottom-right","右下")]
 
 
 class MainWindow(extensions.MainWindow):
@@ -180,7 +182,9 @@ class MainWindow(extensions.MainWindow):
         for box in self.findChildren(QGroupBox):
             if box.title()=="Text / Unicode overlay": page=box; break
         if page is None or not isinstance(page.layout(),QFormLayout): return
-        self.text_anchor=QComboBox(); self.text_anchor.addItems(["free / current","top-left","top-center","top-right","center-left","center","center-right","bottom-left","bottom-center","bottom-right"]); self.text_anchor.setCurrentText("free / current"); self.text_anchor.currentTextChanged.connect(self._request)
+        self.text_anchor=QComboBox()
+        for key,label in ANCHORS: self.text_anchor.addItem(label if False else key,key)
+        self.text_anchor.setCurrentIndex(0); self.text_anchor.currentIndexChanged.connect(self._request)
         page.layout().addRow("Snap position",self.text_anchor)
 
     def _config(self):
@@ -189,7 +193,7 @@ class MainWindow(extensions.MainWindow):
             try:self.seed.setText(self.result.seed)
             finally:self.seed.blockSignals(False)
         cfg=super()._config()
-        if hasattr(self,"text_anchor"): self.renderer.text_settings["anchor"]=self.text_anchor.currentText().replace(" ","-")
+        if hasattr(self,"text_anchor"): self.renderer.text_settings["anchor"]=self.text_anchor.currentData() or "free / current"
         return cfg
 
     def _finished(self,result,render_id):
@@ -208,49 +212,47 @@ class MainWindow(extensions.MainWindow):
             sc=QShortcut(QKeySequence(key),self); sc.setContext(Qt.ApplicationShortcut); sc.activated.connect(slot); self._shortcut_objects.append(sc)
 
     def _install_settings_menu(self):
-        file_menu=self.menuBar().findChild(QMenu)
+        file_action=next((a for a in self.menuBar().actions() if a.text()=="File"),None)
         settings_menu=self.menuBar().addMenu("Settings")
-        if file_menu is not None: self.menuBar().insertMenu(file_menu.menuAction(),settings_menu)
+        if file_action is not None: self.menuBar().insertMenu(file_action,settings_menu)
         lang_menu=settings_menu.addMenu("Language")
         self._lang_en=lang_menu.addAction("English"); self._lang_ja=lang_menu.addAction("日本語")
         self._lang_en.setCheckable(True); self._lang_ja.setCheckable(True)
         self._lang_en.triggered.connect(lambda: self._set_language("en")); self._lang_ja.triggered.connect(lambda: self._set_language("ja"))
-        settings_menu.addSeparator(); reset=settings_menu.addAction("Reset window size"); reset.triggered.connect(lambda: (self.resize(1540,940), self.settings.remove("geometry")))
+        settings_menu.addSeparator(); reset=settings_menu.addAction("Reset window size"); reset.triggered.connect(self._reset_window_size)
+
+    def _reset_window_size(self):
+        self.resize(1540,940); self.settings.remove("geometry")
 
     def _set_language(self, language):
         self.settings.setValue("language",language); self._apply_language(language)
 
     def _translate_text(self, text, language):
-        if language=="ja": return EN_TRANSLATIONS.get(text,text)
-        return JA_TO_EN.get(text,text)
+        return EN_TRANSLATIONS.get(text,text) if language=="ja" else JA_TO_EN.get(text,text)
 
     def _apply_language(self, language):
         language="ja" if language=="ja" else "en"
-        for widget in self.findChildren((QGroupBox,)):
-            widget.setTitle(self._translate_text(widget.title(),language))
-        for widget in self.findChildren(tuple()):
-            pass
-        for widget in self.findChildren(QFormLayout):
-            pass
-        from PySide6.QtWidgets import QLabel, QPushButton, QCheckBox, QLineEdit, QPlainTextEdit
+        for widget in self.findChildren(QGroupBox): widget.setTitle(self._translate_text(widget.title(),language))
         for widget in self.findChildren((QLabel,QPushButton,QCheckBox,QLineEdit,QPlainTextEdit)):
-            if hasattr(widget,"text"):
-                try: widget.setText(self._translate_text(widget.text(),language))
-                except Exception: pass
-        tabs=self.findChild(__import__('PySide6.QtWidgets',fromlist=['QTabWidget']).QTabWidget)
+            if isinstance(widget,QPlainTextEdit): continue
+            try: widget.setText(self._translate_text(widget.text(),language))
+            except Exception: pass
+        tabs=self.findChild(QTabWidget)
         if tabs is not None:
             for i in range(tabs.count()): tabs.setTabText(i,self._translate_text(tabs.tabText(i),language))
         if hasattr(self,"text_anchor"):
-            current=self.text_anchor.currentText(); internal=current.lower().replace(" ","-");
-            choices=["free / current","top-left","top-center","top-right","center-left","center","center-right","bottom-left","bottom-center","bottom-right"]
-            self.text_anchor.blockSignals(True); self.text_anchor.clear()
-            for key in choices: self.text_anchor.addItem(key if language=="en" else EN_TRANSLATIONS.get(key.replace("-"," "),key), key)
-            self.text_anchor.setCurrentText(current if language=="en" else EN_TRANSLATIONS.get(current.replace("-"," "),current)); self.text_anchor.blockSignals(False)
-        menu_actions=self.menuBar().actions()
-        for action in menu_actions:
-            action.setText(self._translate_text(action.text(),language))
-        self._lang_en.setText("English"); self._lang_ja.setText("日本語"); self._lang_en.setChecked(language=="en"); self._lang_ja.setChecked(language=="ja")
-        self._localized_language=language
+            current=self.text_anchor.currentData() or "free / current"; self.text_anchor.blockSignals(True); self.text_anchor.clear()
+            for key,ja in ANCHORS: self.text_anchor.addItem(key if language=="en" else ja,key)
+            self.text_anchor.setCurrentIndex(max(0,self.text_anchor.findData(current))); self.text_anchor.blockSignals(False)
+            for layout in self.findChildren(QFormLayout):
+                for row in range(layout.rowCount()):
+                    label=layout.itemAt(row,QFormLayout.LabelRole)
+                    if label is not None and label.widget() is not None:
+                        w=label.widget()
+                        if w.text()=="Snap position" or w.text()=="スナップ位置": w.setText(self._translate_text("Snap position",language))
+        for action in self.menuBar().actions(): action.setText(self._translate_text(action.text(),language))
+        self._settings_menu.setTitle(self._translate_text("Settings",language)) if hasattr(self,"_settings_menu") else None
+        self._lang_en.setChecked(language=="en"); self._lang_ja.setChecked(language=="ja"); self._localized_language=language
 
 EnhancedPatternRenderer=extensions.EnhancedPatternRenderer
 __all__=["MainWindow","EnhancedPatternRenderer"]
