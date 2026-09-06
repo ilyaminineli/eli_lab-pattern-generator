@@ -2,17 +2,14 @@ from __future__ import annotations
 
 import math
 
+from PySide6.QtGui import QFontDatabase
+
 from . import extensions
 from .generator import PatternRenderer as BaseRenderer, _rotate
 
 
 def _compatible_shape(self, draw, svg, cfg, rng, shape, cx, cy, size, rotation, color, alpha):
-    """Compatibility layer for the base renderer's RNG-aware _shape hook.
-
-    The stable PatternRenderer calls _shape with ``rng``.  The extension
-    override predates that signature, so normalize the call here while keeping
-    the original generator implementation untouched.
-    """
+    """Compatibility layer for the base renderer's RNG-aware _shape hook."""
     settings = getattr(self, "perspective_settings", {})
     if not settings.get("enabled", False) or settings.get("strength", 0) <= 0:
         return BaseRenderer._shape(self, draw, svg, cfg, rng, shape, cx, cy, size, rotation, color, alpha)
@@ -107,10 +104,107 @@ def _compatible_shape(self, draw, svg, cfg, rng, shape, cx, cy, size, rotation, 
         )
 
 
-# Override only the broken extension hook. No changes to generator.py/ui.py.
+# Keep the core renderer untouched; only normalize the extension hook.
 extensions.EnhancedPatternRenderer._shape = _compatible_shape
 
-MainWindow = extensions.MainWindow
+
+def _font_families() -> list[str]:
+    """Build a useful, deterministic system-font list for Latin + Japanese text."""
+    try:
+        db = QFontDatabase()
+        all_families = set(db.families())
+        try:
+            japanese = set(db.families(QFontDatabase.WritingSystem.Japanese))
+        except Exception:
+            japanese = set()
+    except Exception:
+        all_families = set()
+        japanese = set()
+
+    preferred = [
+        # Japanese / CJK serif
+        "Yu Mincho", "YuMincho", "MS Mincho", "MS PMincho", "BIZ UDPMincho", "BIZ UDMincho",
+        "Noto Serif CJK JP", "Noto Serif JP", "Source Han Serif", "Source Han Serif JP",
+        "Hiragino Mincho ProN", "Hiragino Mincho Pro", "IPAexMincho", "IPAMincho",
+        # Japanese / CJK sans
+        "Yu Gothic", "YuGothic", "Meiryo", "Meiryo UI", "MS Gothic", "MS PGothic",
+        "BIZ UDPGothic", "BIZ UD Gothic", "Noto Sans CJK JP", "Noto Sans JP", "Source Han Sans",
+        "Source Han Sans JP", "Hiragino Kaku Gothic ProN", "IPAexGothic", "IPAGothic",
+        # Latin / display / technical
+        "Bahnschrift", "Bahnschrift SemiBold", "Segoe UI", "Segoe UI Variable", "Segoe UI Light",
+        "Aptos", "Aptos Display", "Arial", "Arial Narrow", "Helvetica Neue", "Futura",
+        "Gill Sans", "Garamond", "Book Antiqua", "Century Gothic", "Impact", "Trebuchet MS",
+        "Consolas", "Cascadia Code", "Cascadia Mono", "JetBrains Mono", "IBM Plex Sans",
+        "IBM Plex Serif", "Inter", "Montserrat", "Roboto", "Roboto Condensed",
+    ]
+
+    ordered: list[str] = []
+    seen: set[str] = set()
+
+    # Put known Japanese-capable families first, preserving useful distinctions.
+    for family in preferred:
+        if family in all_families and family not in seen:
+            ordered.append(family)
+            seen.add(family)
+
+    for family in sorted(japanese, key=str.casefold):
+        if family not in seen:
+            ordered.append(family)
+            seen.add(family)
+
+    # Add interesting installed families even if they are not Japanese-capable.
+    keywords = (
+        "display", "condensed", "mono", "serif", "gothic", "mincho", "script", "slab",
+        "hand", "sans", "headline", "black", "light", "variable", "retro", "pixel",
+    )
+    for family in sorted(all_families, key=str.casefold):
+        low = family.casefold()
+        if family not in seen and any(word in low for word in keywords):
+            ordered.append(family)
+            seen.add(family)
+
+    return ordered
+
+
+class MainWindow(extensions.MainWindow):
+    """Final compatibility wrapper: stable rendering + richer system fonts."""
+
+    def _connect_auto_preview(self):
+        # Keep all of the original auto-preview controls, but choosing a palette
+        # merely changes the pending configuration. It must not trigger a render.
+        super()._connect_auto_preview()
+        try:
+            self.palette_mode.currentTextChanged.disconnect(self._request)
+        except (TypeError, RuntimeError):
+            pass
+
+    def __init__(self):
+        super().__init__()
+        self._populate_text_fonts()
+
+    def _populate_text_fonts(self):
+        combo = getattr(self, "text_font", None)
+        if combo is None:
+            return
+        current = combo.currentText()
+        families = _font_families()
+        if not families:
+            families = [current or "Sans Serif"]
+        combo.blockSignals(True)
+        combo.clear()
+        combo.addItems(families)
+        if current in families:
+            combo.setCurrentText(current)
+        elif "Bahnschrift" in families:
+            combo.setCurrentText("Bahnschrift")
+        else:
+            combo.setCurrentIndex(0)
+        combo.setEditable(True)
+        combo.setInsertPolicy(combo.InsertPolicy.NoInsert)
+        combo.setMaxVisibleItems(18)
+        combo.blockSignals(False)
+
+
 EnhancedPatternRenderer = extensions.EnhancedPatternRenderer
 
 __all__ = ["MainWindow", "EnhancedPatternRenderer"]
